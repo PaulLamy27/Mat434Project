@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.353">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Paul Lamy, Software Engineer and Data Scientist">
+
+<title>MAT434 Final Project - TMDB Data Analysis</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="FinalProject_files/libs/clipboard/clipboard.min.js"></script>
+<script src="FinalProject_files/libs/quarto-html/quarto.js"></script>
+<script src="FinalProject_files/libs/quarto-html/popper.min.js"></script>
+<script src="FinalProject_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="FinalProject_files/libs/quarto-html/anchor.min.js"></script>
+<link href="FinalProject_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="FinalProject_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="FinalProject_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="FinalProject_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="FinalProject_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">MAT434 Final Project - TMDB Data Analysis</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Paul Lamy, Software Engineer and Data Scientist </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: package 'reticulate' was built under R version 4.3.2</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'dplyr'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:stats':
+
+    filter, lag</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>
+Attaching package: 'kableExtra'</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The following object is masked from 'package:dplyr':
+
+    group_rows</code></pre>
+</div>
+</div>
+<section id="statement-of-purpose" class="level2">
+<h2 class="anchored" data-anchor-id="statement-of-purpose">STATEMENT OF PURPOSE</h2>
+<p>This report takes data from TMDB, a massive online database of films, and examines various characteristics of movies and how these relate to the rating, or vote average, of that movie. Then, two kinds of regression models are constructed, and these can be used to predict the rating of a movie based on those predictor characteristics.</p>
+</section>
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">INTRODUCTION</h2>
+<p>There are many factors that go into making a movie, some intentional such as budget and the runtime of the film, and others such as the spoken language of the film and the revenue the film earns. TheMovieDataBase, hereforth TMDB, is an online database of almost every single movie ever created. For reference, the dataset for this project is about 45000 rows long!</p>
+<p>The original data has columns that are not helpful for the analysis. This data:’</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;string&gt;:1: DtypeWarning: Columns (10) have mixed types. Specify dtype option on import or set low_memory=False.</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;class 'pandas.core.frame.DataFrame'&gt;
+RangeIndex: 45466 entries, 0 to 45465
+Data columns (total 24 columns):
+ #   Column                 Non-Null Count  Dtype  
+---  ------                 --------------  -----  
+ 0   adult                  45466 non-null  object 
+ 1   belongs_to_collection  4494 non-null   object 
+ 2   budget                 45466 non-null  object 
+ 3   genres                 45466 non-null  object 
+ 4   homepage               7782 non-null   object 
+ 5   id                     45466 non-null  object 
+ 6   imdb_id                45449 non-null  object 
+ 7   original_language      45455 non-null  object 
+ 8   original_title         45466 non-null  object 
+ 9   overview               44512 non-null  object 
+ 10  popularity             45461 non-null  object 
+ 11  poster_path            45080 non-null  object 
+ 12  production_companies   45463 non-null  object 
+ 13  production_countries   45463 non-null  object 
+ 14  release_date           45379 non-null  object 
+ 15  revenue                45460 non-null  float64
+ 16  runtime                45203 non-null  float64
+ 17  spoken_languages       45460 non-null  object 
+ 18  status                 45379 non-null  object 
+ 19  tagline                20412 non-null  object 
+ 20  title                  45460 non-null  object 
+ 21  video                  45460 non-null  object 
+ 22  vote_average           45460 non-null  float64
+ 23  vote_count             45460 non-null  float64
+dtypes: float64(4), object(20)
+memory usage: 8.3+ MB</code></pre>
+</div>
+</div>
+<p>becomes</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;class 'pandas.core.frame.DataFrame'&gt;
+RangeIndex: 45466 entries, 0 to 45465
+Data columns (total 8 columns):
+ #   Column             Non-Null Count  Dtype  
+---  ------             --------------  -----  
+ 0   budget             45466 non-null  object 
+ 1   genres             45466 non-null  object 
+ 2   original_language  45455 non-null  object 
+ 3   release_date       45379 non-null  object 
+ 4   revenue            45460 non-null  float64
+ 5   runtime            45203 non-null  float64
+ 6   title              45460 non-null  object 
+ 7   vote_average       45460 non-null  float64
+dtypes: float64(3), object(5)
+memory usage: 2.8+ MB</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>0       1995-10-30
+1       1995-12-15
+2       1995-12-22
+3       1995-12-22
+4       1995-02-10
+           ...    
+45461          NaT
+45462   2011-11-17
+45463   2003-08-01
+45464   1917-10-21
+45465   2017-06-09
+Name: release_date, Length: 45466, dtype: datetime64[ns]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>0        30000000.0
+1        65000000.0
+2               0.0
+3        16000000.0
+4               0.0
+            ...    
+45461           0.0
+45462           0.0
+45463           0.0
+45464           0.0
+45465           0.0
+Name: budget, Length: 45466, dtype: float64</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>array(['en', 'fr', 'zh', 'it', 'fa', 'nl', 'de', 'cn', 'ar', 'es', 'ru',
+       'sv', 'ja', 'ko', 'sr', 'bn', 'he', 'pt', 'wo', 'ro', 'hu', 'cy',
+       'vi', 'cs', 'da', 'no', 'nb', 'pl', 'el', 'sh', 'xx', 'mk', 'bo',
+       'ca', 'fi', 'th', 'sk', 'bs', 'hi', 'tr', 'is', 'ps', 'ab', 'eo',
+       'ka', 'mn', 'bm', 'zu', 'uk', 'af', 'la', 'et', 'ku', 'fy', 'lv',
+       'ta', 'sl', 'tl', 'ur', 'rw', 'id', 'bg', 'mr', 'lt', 'kk', 'ms',
+       'sq', '104.0', 'qu', 'te', 'am', 'jv', 'tg', 'ml', 'hr', 'lo',
+       'ay', 'kn', 'eu', 'ne', 'pa', 'ky', 'gl', '68.0', 'uz', 'sm', 'mt',
+       '82.0', 'hy', 'iu', 'lb', 'si'], dtype=object)</code></pre>
+</div>
+</div>
+<p>The following chart displays the number of films for each main language, and displays only the top 20 languages that have the most films.</p>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>Selecting by n</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="FinalProject_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This chart compares a movie’s budget with its average vote:</p>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in FUN(X[[i]], ...): NAs introduced by coercion</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Transformation introduced infinite values in continuous x-axis</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Removed 4 rows containing missing values (`geom_point()`).</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="FinalProject_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This chart compares a movie’s runtime with its average vote:</p>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Removed 200 rows containing missing values (`geom_point()`).</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="FinalProject_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This chart shows the relationship between the date a film was released and the average vote:</p>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: Removed 90 rows containing missing values (`geom_point()`).</code></pre>
+</div>
+<div class="cell-output-display">
+<p><img src="FinalProject_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This chart displays the median vote for each genre:</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="FinalProject_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;class 'pandas.core.frame.DataFrame'&gt;
+RangeIndex: 85 entries, 0 to 84
+Data columns (total 2 columns):
+ #   Column             Non-Null Count  Dtype  
+---  ------             --------------  -----  
+ 0   original_language  85 non-null     object 
+ 1   median_vote        84 non-null     float64
+dtypes: float64(1), object(1)
+memory usage: 1.5+ KB</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>array(['en', 'ko', 'ru', 'no', 'am', 'it', 'de', 'fr', 'da', 'fi', 'zh',
+       'bn', 'sv', 'es', 'hu', 'ja', 'hi', 'nl', 'mr', 'el', 'fa', 'pt',
+       'pl', 'cs', 'cn', 'eo', 'hr', 'sr', 'ml', 'th', 'tr', 'ta', 'ro',
+       'bg', 'mk', 'he', 'ka', 'xx', 'uk', 'te', 'ar', 'ku', 'lv', 'bs',
+       'wo', 'tl', 'is', 'ca', 'eu', 'gl', 'jv', 'sh', 'sl', 'ab', 'sk',
+       'vi', 'et', 'iu', 'ms', 'ur', 'nb', 'kn', 'qu', 'zu', 'ky', 'id',
+       'sq', 'lt', 'tg', 'lb', 'ne', 'fy', 'pa', 'sm', 'af', 'bo', 'lo',
+       'bm', 'ps', 'mt', 'kk', 'ay', 'la', 'uz', 'mn'], dtype=object)</code></pre>
+</div>
+</div>
+<p>This chart displays the median vote for each original language:</p>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="FinalProject_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+<section id="model-construction" class="level2">
+<h2 class="anchored" data-anchor-id="model-construction">Model Construction</h2>
+<p>In order to see how accurate the prediction of a film’s rating is, the models first need to be constructed. Firstly, the <code>release_date</code> column will be changed to a format that is better for the modeling pipeline, which is a Unix timestamp. Then, the train data is split into the x and y, where x is all columns except for the <code>vote_average</code> and y is the <code>vote_average</code> column the model is trying to predict. There is a separation between numerical columns and categorical columns, which is helpful for the pipeline.</p>
+<p>We will utilize 2 different kinds of mathematical models.</p>
+<p>The first is Decision tree. The decision tree model looks at points and asks yes or no questions about the points. The ‘depth’ of the tree is how many questions are asked.</p>
+<p>The second is Random Tree Forest Classifier. It uses multiple Decision tree models that are trained on specific data. (multiple trees = a forest).</p>
+<p>The modeling workflow for Random Tree Forest is the same as DecisionTree, with the intermediate steps slightly different than the models that were individual models and not ensembles. Here is a brief summary:</p>
+<ol type="1">
+<li>Make the numerical pipeline. This says how the numbers will be handled by the model.</li>
+<li>Make the categorical pipeline. This has already been done above for DT, and the same categorical pipeline is used since categorical values will be handled the same way.</li>
+<li>Combine the 2 pipelines into a preprocessor. These combined will be used to tell the model how to handle the data.</li>
+<li>Create the pipeline, which creates the model.</li>
+<li>Fit the model (allow it to take practice tests).</li>
+<li>Run the model and let the model make predicitions for the price range for each home (the model has practiced, this is the actual test).</li>
+<li>Output the results.</li>
+</ol>
+<p>Next step is to create the pipeline, or the series of steps for how we will define and set the settings for both of the models. In this notebook, each of the steps for both is described.</p>
+<p>When doing predictions with models, 3 things happens: Data preprocessing, which is when we organize data to be ready for analysis; model building which is when we make a prediction algorithm that learns patterns from the data; and then we evaluate how good the model is by using test data. A pipeline puts all of these steps together in on process</p>
+<p>We first define which relevant columns are numerical and which ones are categorical. Then we create the pipeline for both Decision Tree. The pipeline for numerical values is different for Decision Tree and Random Tree Forest.</p>
+<p>Both model workflows will use the same categorical pipeline, as the way categories are handled will be the same: using SimpleImputer with the most frequent value to fill in missing values, and OneHotEncoder to turn categorical values into True or False. The preprocessor is what is used to package the numerical and categorical columns together. After that comes the main pipelines. This combines the preprocessor, which is how the data is handled, with the specific model. Then the model must be fit to the data, or ‘take practice tests’ and have the model ‘take the REAL test’. After that, we conclude with finding the Root Mean Squared Error of our results for both models.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>&lt;class 'pandas.core.frame.DataFrame'&gt;
+Index: 34099 entries, 37930 to 34577
+Data columns (total 6 columns):
+ #   Column             Non-Null Count  Dtype  
+---  ------             --------------  -----  
+ 0   budget             34099 non-null  float64
+ 1   original_language  34099 non-null  object 
+ 2   release_date       34099 non-null  int64  
+ 3   revenue            34095 non-null  float64
+ 4   runtime            34099 non-null  float64
+ 5   genre_names        34099 non-null  object 
+dtypes: float64(3), int64(1), object(2)
+memory usage: 1.8+ MB</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>make_scorer(neg_root_mean_squared_error)</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>array([-2.55277053, -2.60017719, -2.57023296, -2.57867947, -2.54520685])</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>-2.569413397035473</code></pre>
+</div>
+<div class="cell-output-display">
+<style>#sk-container-id-1 {color: black;}#sk-container-id-1 pre{padding: 0;}#sk-container-id-1 div.sk-toggleable {background-color: white;}#sk-container-id-1 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-1 label.sk-toggleable__label-arrow:before {content: "▸";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-1 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-1 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-1 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-1 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-1 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-1 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: "▾";}#sk-container-id-1 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-1 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-1 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-1 div.sk-parallel-item::after {content: "";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-1 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-serial::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-1 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-1 div.sk-item {position: relative;z-index: 1;}#sk-container-id-1 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-1 div.sk-item::before, #sk-container-id-1 div.sk-parallel-item::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-1 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-1 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-1 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-1 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-1 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-1 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-1 div.sk-label-container {text-align: center;}#sk-container-id-1 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-1 div.sk-text-repr-fallback {display: none;}</style><div id="sk-container-id-1" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>Pipeline(steps=[('preprocessing',
+                 ColumnTransformer(transformers=[('num',
+                                                  Pipeline(steps=[('num_imputer',
+                                                                   SimpleImputer(strategy='median')),
+                                                                  ('norm',
+                                                                   StandardScaler())]),
+                                                  ['budget', 'release_date',
+                                                   'revenue', 'runtime']),
+                                                 ('cat',
+                                                  Pipeline(steps=[('cat_imputer',
+                                                                   SimpleImputer(strategy='most_frequent')),
+                                                                  ('one_hot',
+                                                                   OneHotEncoder(handle_unknown='ignore'))]),
+                                                  ['original_language'])])),
+                ('model', DecisionTreeRegressor(random_state=434))])</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br>On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden=""><div class="sk-item sk-dashed-wrapped"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-1" type="checkbox"><label for="sk-estimator-id-1" class="sk-toggleable__label sk-toggleable__label-arrow">Pipeline</label><div class="sk-toggleable__content"><pre>Pipeline(steps=[('preprocessing',
+                 ColumnTransformer(transformers=[('num',
+                                                  Pipeline(steps=[('num_imputer',
+                                                                   SimpleImputer(strategy='median')),
+                                                                  ('norm',
+                                                                   StandardScaler())]),
+                                                  ['budget', 'release_date',
+                                                   'revenue', 'runtime']),
+                                                 ('cat',
+                                                  Pipeline(steps=[('cat_imputer',
+                                                                   SimpleImputer(strategy='most_frequent')),
+                                                                  ('one_hot',
+                                                                   OneHotEncoder(handle_unknown='ignore'))]),
+                                                  ['original_language'])])),
+                ('model', DecisionTreeRegressor(random_state=434))])</pre></div></div></div><div class="sk-serial"><div class="sk-item sk-dashed-wrapped"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-2" type="checkbox"><label for="sk-estimator-id-2" class="sk-toggleable__label sk-toggleable__label-arrow">preprocessing: ColumnTransformer</label><div class="sk-toggleable__content"><pre>ColumnTransformer(transformers=[('num',
+                                 Pipeline(steps=[('num_imputer',
+                                                  SimpleImputer(strategy='median')),
+                                                 ('norm', StandardScaler())]),
+                                 ['budget', 'release_date', 'revenue',
+                                  'runtime']),
+                                ('cat',
+                                 Pipeline(steps=[('cat_imputer',
+                                                  SimpleImputer(strategy='most_frequent')),
+                                                 ('one_hot',
+                                                  OneHotEncoder(handle_unknown='ignore'))]),
+                                 ['original_language'])])</pre></div></div></div><div class="sk-parallel"><div class="sk-parallel-item"><div class="sk-item"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-3" type="checkbox"><label for="sk-estimator-id-3" class="sk-toggleable__label sk-toggleable__label-arrow">num</label><div class="sk-toggleable__content"><pre>['budget', 'release_date', 'revenue', 'runtime']</pre></div></div></div><div class="sk-serial"><div class="sk-item"><div class="sk-serial"><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-4" type="checkbox"><label for="sk-estimator-id-4" class="sk-toggleable__label sk-toggleable__label-arrow">SimpleImputer</label><div class="sk-toggleable__content"><pre>SimpleImputer(strategy='median')</pre></div></div></div><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-5" type="checkbox"><label for="sk-estimator-id-5" class="sk-toggleable__label sk-toggleable__label-arrow">StandardScaler</label><div class="sk-toggleable__content"><pre>StandardScaler()</pre></div></div></div></div></div></div></div></div><div class="sk-parallel-item"><div class="sk-item"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-6" type="checkbox"><label for="sk-estimator-id-6" class="sk-toggleable__label sk-toggleable__label-arrow">cat</label><div class="sk-toggleable__content"><pre>['original_language']</pre></div></div></div><div class="sk-serial"><div class="sk-item"><div class="sk-serial"><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-7" type="checkbox"><label for="sk-estimator-id-7" class="sk-toggleable__label sk-toggleable__label-arrow">SimpleImputer</label><div class="sk-toggleable__content"><pre>SimpleImputer(strategy='most_frequent')</pre></div></div></div><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-8" type="checkbox"><label for="sk-estimator-id-8" class="sk-toggleable__label sk-toggleable__label-arrow">OneHotEncoder</label><div class="sk-toggleable__content"><pre>OneHotEncoder(handle_unknown='ignore')</pre></div></div></div></div></div></div></div></div></div></div><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-9" type="checkbox"><label for="sk-estimator-id-9" class="sk-toggleable__label sk-toggleable__label-arrow">DecisionTreeRegressor</label><div class="sk-toggleable__content"><pre>DecisionTreeRegressor(random_state=434)</pre></div></div></div></div></div></div></div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Root Mean Squared Error: 2.579426174319818</code></pre>
+</div>
+</div>
+<p>The Root Mean Squared Error for DecisionTreeRegressor is 2.5794262.</p>
+<p>The above format for model construction is followed for RandomTreeForsest as well.</p>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>array([-1.86923887, -1.85884277, -1.89070092, -1.87525819, -1.83816438])</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>-1.8664410243481981</code></pre>
+</div>
+<div class="cell-output-display">
+<style>#sk-container-id-2 {color: black;}#sk-container-id-2 pre{padding: 0;}#sk-container-id-2 div.sk-toggleable {background-color: white;}#sk-container-id-2 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-2 label.sk-toggleable__label-arrow:before {content: "▸";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-2 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-2 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-2 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-2 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-2 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-2 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: "▾";}#sk-container-id-2 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-2 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-2 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-2 div.sk-parallel-item::after {content: "";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-2 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 div.sk-serial::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-2 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-2 div.sk-item {position: relative;z-index: 1;}#sk-container-id-2 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-2 div.sk-item::before, #sk-container-id-2 div.sk-parallel-item::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-2 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-2 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-2 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-2 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-2 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-2 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-2 div.sk-label-container {text-align: center;}#sk-container-id-2 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-2 div.sk-text-repr-fallback {display: none;}</style><div id="sk-container-id-2" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>Pipeline(steps=[('preprocessing',
+                 ColumnTransformer(transformers=[('num',
+                                                  Pipeline(steps=[('num_imputer',
+                                                                   SimpleImputer(strategy='median')),
+                                                                  ('norm',
+                                                                   StandardScaler())]),
+                                                  ['budget', 'release_date',
+                                                   'revenue', 'runtime']),
+                                                 ('cat',
+                                                  Pipeline(steps=[('cat_imputer',
+                                                                   SimpleImputer(strategy='most_frequent')),
+                                                                  ('one_hot',
+                                                                   OneHotEncoder(handle_unknown='ignore'))]),
+                                                  ['original_language'])])),
+                ('model', DecisionTreeRegressor(random_state=434))])</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br>On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden=""><div class="sk-item sk-dashed-wrapped"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-10" type="checkbox"><label for="sk-estimator-id-10" class="sk-toggleable__label sk-toggleable__label-arrow">Pipeline</label><div class="sk-toggleable__content"><pre>Pipeline(steps=[('preprocessing',
+                 ColumnTransformer(transformers=[('num',
+                                                  Pipeline(steps=[('num_imputer',
+                                                                   SimpleImputer(strategy='median')),
+                                                                  ('norm',
+                                                                   StandardScaler())]),
+                                                  ['budget', 'release_date',
+                                                   'revenue', 'runtime']),
+                                                 ('cat',
+                                                  Pipeline(steps=[('cat_imputer',
+                                                                   SimpleImputer(strategy='most_frequent')),
+                                                                  ('one_hot',
+                                                                   OneHotEncoder(handle_unknown='ignore'))]),
+                                                  ['original_language'])])),
+                ('model', DecisionTreeRegressor(random_state=434))])</pre></div></div></div><div class="sk-serial"><div class="sk-item sk-dashed-wrapped"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-11" type="checkbox"><label for="sk-estimator-id-11" class="sk-toggleable__label sk-toggleable__label-arrow">preprocessing: ColumnTransformer</label><div class="sk-toggleable__content"><pre>ColumnTransformer(transformers=[('num',
+                                 Pipeline(steps=[('num_imputer',
+                                                  SimpleImputer(strategy='median')),
+                                                 ('norm', StandardScaler())]),
+                                 ['budget', 'release_date', 'revenue',
+                                  'runtime']),
+                                ('cat',
+                                 Pipeline(steps=[('cat_imputer',
+                                                  SimpleImputer(strategy='most_frequent')),
+                                                 ('one_hot',
+                                                  OneHotEncoder(handle_unknown='ignore'))]),
+                                 ['original_language'])])</pre></div></div></div><div class="sk-parallel"><div class="sk-parallel-item"><div class="sk-item"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-12" type="checkbox"><label for="sk-estimator-id-12" class="sk-toggleable__label sk-toggleable__label-arrow">num</label><div class="sk-toggleable__content"><pre>['budget', 'release_date', 'revenue', 'runtime']</pre></div></div></div><div class="sk-serial"><div class="sk-item"><div class="sk-serial"><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-13" type="checkbox"><label for="sk-estimator-id-13" class="sk-toggleable__label sk-toggleable__label-arrow">SimpleImputer</label><div class="sk-toggleable__content"><pre>SimpleImputer(strategy='median')</pre></div></div></div><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-14" type="checkbox"><label for="sk-estimator-id-14" class="sk-toggleable__label sk-toggleable__label-arrow">StandardScaler</label><div class="sk-toggleable__content"><pre>StandardScaler()</pre></div></div></div></div></div></div></div></div><div class="sk-parallel-item"><div class="sk-item"><div class="sk-label-container"><div class="sk-label sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-15" type="checkbox"><label for="sk-estimator-id-15" class="sk-toggleable__label sk-toggleable__label-arrow">cat</label><div class="sk-toggleable__content"><pre>['original_language']</pre></div></div></div><div class="sk-serial"><div class="sk-item"><div class="sk-serial"><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-16" type="checkbox"><label for="sk-estimator-id-16" class="sk-toggleable__label sk-toggleable__label-arrow">SimpleImputer</label><div class="sk-toggleable__content"><pre>SimpleImputer(strategy='most_frequent')</pre></div></div></div><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-17" type="checkbox"><label for="sk-estimator-id-17" class="sk-toggleable__label sk-toggleable__label-arrow">OneHotEncoder</label><div class="sk-toggleable__content"><pre>OneHotEncoder(handle_unknown='ignore')</pre></div></div></div></div></div></div></div></div></div></div><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-18" type="checkbox"><label for="sk-estimator-id-18" class="sk-toggleable__label sk-toggleable__label-arrow">DecisionTreeRegressor</label><div class="sk-toggleable__content"><pre>DecisionTreeRegressor(random_state=434)</pre></div></div></div></div></div></div></div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>2.579426174319818</code></pre>
+</div>
+</div>
+<p>The Root Mean Squared Error for RandomForestRegressor is 2.5794262.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

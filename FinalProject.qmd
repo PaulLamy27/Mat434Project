@@ -1,11 +1,12 @@
 ---
-title: "FinalProject"
-author: "Paul Lamy, Software engineer and Data scientist"
+title: "MAT434 Final Project - TMDB Data Analysis"
+execute: 
+  echo: false
+author: "Paul Lamy, Software Engineer and Data Scientist"
 format: html
 ---
 
-
-```{r}
+```{r echo = FALSE}
 # library(tensorflow)
 # library(keras)
 library(reticulate)
@@ -18,9 +19,14 @@ library(ggplot2)
 use_virtualenv("mat434")
 ```
 
-You can add options to executable code like this 
+## STATEMENT OF PURPOSE
+This report takes data from TMDB, a massive online database of films, and examines various characteristics of movies and how these relate to the rating, or vote average, of that movie. Then, two kinds of regression models are constructed, and these can be used to predict the rating of a movie based on those predictor characteristics.
 
-```{python}
+
+## INTRODUCTION
+There are many factors that go into making a movie, some intentional such as budget and the runtime of the film, and others such as the spoken language of the film and the revenue the film earns. TheMovieDataBase, hereforth TMDB, is an online database of almost every single movie ever created. For reference, the dataset for this project is  about 45000 rows long!  
+
+```{python echo=FALSE}
 import json
 import pandas as pd
 import numpy as np
@@ -52,17 +58,36 @@ from sklearn.compose import ColumnTransformer
 from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score
 
 from scipy import stats
+```
 
+The original data has columns that are not helpful for the analysis. This data:'
 
+```{python}
 data = pd.read_csv('movies_metadata.csv')
 data.info()
+
+train, test = train_test_split(data, train_size = 0.75, random_state = 434)
+```
+
+becomes
+
+```{python}
 columns_to_drop = ["adult","belongs_to_collection", "homepage", "id", "imdb_id", "original_title", "overview", "popularity", "poster_path", "production_companies", "production_countries", "spoken_languages", "status", "tagline", "video", "vote_count"]
 columns_to_keep = ["budget", "genre_names", "original_language", "release_date", "runtime"] 
 data.drop(columns=columns_to_drop, inplace=True)
 data.info()
 ```
 
-```{python}
+```{python echo=FALSE}
+#data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce').astype('float64')
+# data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce')
+# 
+# # errors='coerce' will replace non-numeric values with NaN
+# data['budget'] = pd.to_numeric(data['budget'], errors='coerce')
+# 
+# data['budget'].fillna(data['budget'].median(), inplace=True)
+# data['runtime'].fillna(data['runtime'].median(), inplace=True)
+# data['original_language'].fillna(data['original_language'].mode()[0], inplace=True)
 #data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce').astype('float64')
 data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce')
 data['release_date']
@@ -76,163 +101,23 @@ data['original_language'].fillna(data['original_language'].mode()[0], inplace=Tr
 data['original_language'].unique()
 ```
 
-```{python}
-data["genres"]
+```{python echo=FALSE}
 data["genres"] = data["genres"].str.replace("'", '"')
 genres_as_dict = data["genres"].apply(lambda x: json.loads(x) if pd.notna(x) else [])
 data['genre_names'] = genres_as_dict.apply(lambda genres: [genre['name'] for genre in genres])
-print(data[['genres', 'genre_names']])
 
 # Explode the 'genre_names' column to create separate rows for each genre
 exploded_data = data.explode('genre_names')
 
 # Group by 'genre_names' and calculate the median 'vote_average'
 median_by_genre = exploded_data.groupby('genre_names')['vote_average'].median().reset_index()
-median_by_genre
 
 # Display the result
 median_by_genre = median_by_genre.dropna(subset=['vote_average'])
-median_by_genre
 ```
-
-```{python}
-data["production_companies"]
-# Assuming your DataFrame is called 'data'
-data['production_companies'] = data['production_companies'].apply(lambda x: [item['name'] for item in x] if isinstance(x, list) else [])
-
-# Create a new column 'production_company_names' by joining the extracted names
-data['production_company_names'] = data['production_companies'].apply(lambda x: ', '.join(x) if x else '')
-
-data['production_company_names']
-
-# Define a function to safely evaluate the string representation of lists
-def safe_eval(value):
-    try:
-        return ast.literal_eval(value)
-    except (SyntaxError, ValueError):
-        return []
-
-# Define a function to extract 'name' attribute from each dictionary in a row
-def extract_company_names(row):
-    if not isinstance(row, list):  # Handle empty lists
-        return []
-    names = [entry["name"] for entry in row]
-    
-    return names
-
-
-
-# Apply the function to the "production_companies" column
-data["production_companies"]
-data["production_companies"][0]
-data["production_companies"][0][0]
-data["production_companies"][0][0]["name"]
-
-data["production_companies"] = data["production_companies"].apply(safe_eval)
-data["production_companies"]
-data["production_company_names"] = data["production_companies"].apply(extract_company_names)
-
-```
-
-```{python}
-# Apply the function to create a new column 'production_company_names'
-# data["production_companies"] = data["production_companies"].apply(ast.literal_eval)
-data["production_company_names"] = data["production_companies"].apply(extract_company_names)
-data["production_company_names"]
-
-data['production_company_names']
-
-data[['production_company_names', 'vote_average']]
-
-production_companies_exploded = data.explode('production_company_names')
-production_companies_exploded
-
-median_by_production_companies = production_companies_exploded.groupby('production_company_names')['vote_average'].median().reset_index()
-median_by_production_companies
-
-```
-
-```{python}
-
-data['production_company_names'] = production_company_names.apply(lambda p_comps: [p_comp['name'] for p_comp in p_comps])
-data['production_company_names'].unique()
-
-data['production_companies']
-
-production_companies_as_dict = data['production_companies']
-data['production_companies_names'] = production_companies_as_dict.apply(lambda p_comp: [comp['name'] for comp in p_comp])
-print(data[['production_companies', 'production_companies_names']])
-
-
-print(data[['original_title', 'genre_names', 'vote_average']])
-
-data[['production_companies', 'vote_average']]
-
-data['production_companies'] = data['production_companies'].apply(lambda x: literal_eval(x) if pd.notna(x) else [])
-
-production_companies_exploded = data.explode('production_companies')
-production_companies_exploded.info()
-
-median_by_production_companies = production_companies_exploded.groupby('production_companies')['vote_average'].median().reset_index()
-median_by_production_companies
-
-data['production_companies']
-
-# do not run! very big ;/
-production_companies
-
-# Extract the 'name' attribute for each entry
-production_companies = production_companies.apply(lambda x: json.loads(x) if pd.notna(x) else [])
-# data['production_companies'] = data['production_companies'].apply(lambda x: [entry['name'] for entry in x])
-
-production_companies_as_dict = data['production_companies'].apply(lambda x: json.loads(x) if pd.notna(x) else [])
-
-# production_companies_as_dict = production_companies.apply(lambda x: json.loads(x) if pd.notna(x) else [])
-# production_companies_as_dict
-# 
-# data['genre_names'] = genres_as_dict.apply(lambda production_companies: [production_companies['name'] for production_companies in production_companies])
-data['genre_names'].unique()
-```
-
-```{python}
-data["vote_average"].unique()
-
-rating_df = data.sort_values(by='vote_average', ascending=False)
-rating_df[["original_title","vote_average"]]
-longest_film = rating_df.loc[rating_df["runtime"].max()]
-longest_film
-
-# rating_df["spoken_languages"].unique()
-rating_df['spoken_languages'] = rating_df['spoken_languages'].apply(lambda x: [entry['name'] for entry in json.loads(x)])
-rating_df_exploded = rating_df.explode('spoken_languages')
-
-rating_df_exploded['original_language'].unique()
-
-rating_df[["original_title","popularity"]]
-rating_df['vote_average'].max()
-rating_df['vote_average'].min()
-
-# english_title_films = rating_df.loc[(rating_df["original_language"] == 'en')]
-# english_title_films.info()
-# english_title_films.sort_values(by='vote_average', ascending=False)
-# english_title_films[["original_title","vote_average"]]
-# 
-# chinese_title_films = rating_df.loc[(rating_df["original_language"] == 'zh')]
-# chinese_title_films.sort_values(by='vote_average', ascending=False)
-# chinese_title_films['vote_average'].max()
-# chinese_title_films[["original_title","vote_average"]].head()
-# 
-# dutch_films = rating_df.loc[(rating_df["original_language"] == 'nl')]
-# dutch_films.sort_values(by='popularity', ascending=False)
-# dutch_films['vote_average'].max()
-# 
-# japanese_films = rating_df.loc[(rating_df["original_language"] == 'ja')]
-# japanese_films.sort_values(by='popularity', ascending=False)
-```
-
 The following chart displays the number of films for each main language, and displays only the top 20 languages that have the most films.
 
-```{r}
+```{r echo=FALSE}
 py$data %>%
   count(original_language) %>%
   top_n(20) %>%
@@ -249,31 +134,29 @@ py$data %>%
   coord_flip()  # Optional: Flip the coordinates for horizontal bars
 ```
 
-```{python}
-original_languages_arr = data["original_language"].unique() 
+```{python echo=FALSE}
+original_languages_arr = train["original_language"].unique() 
 median_ratings_orig_lang = []
 
 for language in original_languages_arr:
-  data_subset = data[data['original_language'] == language]['vote_average']
+  data_subset = train[train['original_language'] == language]['vote_average']
   # median_vote_avg = np.median()
   if not data_subset.empty and not data_subset.isnull().all():
     median_vote_avg = np.median(data_subset)
     median_ratings_orig_lang.append({'original_language': language, 'median_vote':median_vote_avg})
   
 median_ratings_orig_lang_df = pd.DataFrame(median_ratings_orig_lang)
-median_ratings_orig_lang_df.info()
-median_ratings_orig_lang_df.head()
 ```
 This chart compares a movie's budget with its average vote:
 
-```{r}
-py$data %>%
+```{r echo=FALSE}
+py$train %>%
   ggplot() +
   geom_point(aes(x = as.numeric(budget), y=vote_average)) +
   labs(
-    x = "budget",
-    y = "vote_average",
-    title = ""
+    x = "Budget",
+    y = "Vote Average",
+    title = "Film Budget vs. Rating"
   ) +
   scale_x_log10(
     "budget",
@@ -282,48 +165,31 @@ py$data %>%
 ```
 This chart compares a movie's runtime with its average vote:
 
-```{r}
-py$data %>%
+```{r echo=FALSE}
+py$train %>%
   ggplot() +
   geom_point(aes(x = as.numeric(runtime), y=vote_average)) +
   labs(
     x = "Runtime",
     y = "Vote Average",
-    title = "Runtime of a Film vs. Average Vote"
-  )
-```
-
-budget vs voteavg
-```{r}
-py$data %>%
-  ggplot() +
-  geom_point(aes(x = as.numeric(budget), y=vote_average)) +
-  labs(
-    x = "budget",
-    y = "vote_average",
-    title = ""
-  ) +
-  scale_x_log10(
-    "budget",
-    labels = scales::dollar_format()
+    title = "Runtime of a Film vs. Rating"
   )
 ```
 
 This chart shows the relationship between the date a film was released and the average vote:
-
-```{r}
+```{r echo=FALSE}
 py$data %>%
   ggplot() +
   geom_point(aes(x = release_date, y=vote_average)) +
   labs(
-    x = "release_date",
-    y = "vote_average",
-    title = ""
+    x = "Release Date",
+    y = "Vote Average",
+    title = "Film Release Date vs. Rating"
   )
 ```
 
-
-```{r}
+This chart displays the median vote for each genre:
+```{r echo=FALSE}
 py$median_by_genre %>%
   ggplot() +
   geom_col(aes(x = genre_names, y = vote_average, fill = genre_names)) +
@@ -336,30 +202,13 @@ py$median_by_genre %>%
   coord_flip()  # Flip the coordinates for horizontal bars
 ```
 
-```{python}
+```{python echo=FALSE}
 median_ratings_orig_lang_df.info()
 median_ratings_orig_lang_df["original_language"].unique()
 ```
 
-
-```{r}
-py$median_by_production_companies %>%
-  count(production_company_names, vote_average) %>%
-  slice_max(order_by = vote_average, n = 20) %>%
-  ggplot() +
-  geom_col(aes(x = production_company_names, y = vote_average, fill = production_company_names)) +
-  labs(
-    x = "",
-    y = "",
-    title = ""
-  ) +
-  theme_minimal() +
-  theme(legend.position="none") +  # Optional: Hide legend if not needed
-  coord_flip()  # Optional: Flip the coordinates for horizontal bars
-```
-
-
-```{r}
+This chart displays the median vote for each original language:
+```{r echo=FALSE}
 py$median_ratings_orig_lang_df %>%
   count(original_language, median_vote) %>%
   slice_max(order_by = median_vote, n = 20) %>%
@@ -374,55 +223,40 @@ py$median_ratings_orig_lang_df %>%
   coord_flip()
 ```
 
+## Model Construction
+In order to see how accurate the prediction of a film's rating is, the models first need to be constructed. Firstly, the `release_date` column will be changed to a format that is better for the modeling pipeline, which is a Unix timestamp. Then, the train data is split into the x and y, where x is all columns except for the `vote_average` and y is the `vote_average` column the model is trying to predict. There is a separation between numerical columns and categorical columns, which is helpful for the pipeline.  
 
-```{python}
-# x_train = data.drop(['vote_average'], axis=1)
-# y_train = data['vote_average']
-# x_train, x_test, y_train, y_test = train_test_split(x_train, y_train, test_size=0.25, random_state=434)
-# x_train.info()
-# x_train.drop("genre_names", axis=1)
-# y_train.info()
-# predictors = ["budget", "original_language", "release_date", "runtime"] 
-# train, test = train_test_split(data, test_size = 0.25, random_state=434)
-# x_train = train.drop(["vote_average", "genres", "title"], axis=1)
-# x_train.info()
-# x_train_encoded = pd.get_dummies(x_train, columns=['original_language'])
-# x_train_encoded['release_date'] = pd.to_datetime(x_train['release_date'])
-# x_train_encoded['release_year'] = x_train['release_date'].dt.year
-# x_train_encoded['release_month'] = x_train['release_date'].dt.month
-# x_train_encoded['release_day'] = x_train['release_date'].dt.day
-# x_train_encoded = x_train_encoded.drop(['release_date'], axis=1)
-# x_train_encoded.info()
-# 
-# x_test = train.drop(["vote_average", "genres", "title"], axis=1)
-# x_test.info()
-# x_test_encoded = pd.get_dummies(x_train, columns=['original_language'])
-# x_test_encoded['release_date'] = pd.to_datetime(x_train['release_date'])
-# x_test_encoded['release_year'] = x_train['release_date'].dt.year
-# x_test_encoded['release_month'] = x_train['release_date'].dt.month
-# x_test_encoded['release_day'] = x_train['release_date'].dt.day
-# x_test_encoded = x_train_encoded.drop('release_date', axis=1)
-# x_test_encoded.info()
-# 
-# y_train = train['vote_average']
-# 
-# genre_dummies = x_train['genre_names'].apply(lambda x: pd.Series({genre: 1 for genre in x} if isinstance(x, list) else {}))
-# 
-# # Concatenate the new binary columns with the original DataFrame
-# x_train_encoded = pd.concat([x_train.drop('genre_names', axis=1), genre_dummies], axis=1)
-# 
-# # Now, do the same for the test set
-# genre_dummies_test = x_test['genre_names'].apply(lambda x: pd.Series({genre: 1 for genre in x} if isinstance(x, list) else {}))
-# x_test_encoded = pd.concat([x_test.drop('genre_names', axis=1), genre_dummies_test], axis=1)
-# 
-# x_test = test.drop(["vote_average", "genres", "title"], axis=1)
-# y_test = test['vote_average']
-# 
-# dt_reg = DecisionTreeRegressor(random_state=434)
-# 
-# dt_reg.fit(x_train_encoded, y_train)
-```
+We will utilize 2 different kinds of mathematical models.
 
+The first is Decision tree. The decision tree model looks at points and asks yes or no questions about the points. The 'depth' of the tree is how many questions are asked.
+
+The second is Random Tree Forest Classifier. It uses multiple Decision tree models that are trained on specific data. (multiple trees = a forest).
+
+The modeling workflow for Random Tree Forest is the same as DecisionTree, with the intermediate steps slightly different than the models that were individual models and not ensembles. Here is a brief summary:
+
+1. Make the numerical pipeline. This says how the numbers will be handled by the model. 
+2. Make the categorical pipeline. This has already been done above for DT, and the same categorical pipeline is used since categorical values will be handled the same way.
+3. Combine the 2 pipelines into a preprocessor. These combined will be used to tell the model how to handle the data.
+4. Create the pipeline, which creates the model.
+5. Fit the model (allow it to take practice tests).
+6. Run the model and let the model make predicitions for the price range for each home (the model has practiced, this is the actual test).
+7. Output the results.
+
+Next step is to create the pipeline, or the series of steps for how we will define and set the settings for both of the models. In this notebook, each of the steps for both is described. 
+
+When doing predictions with models, 3 things happens:
+Data preprocessing, which is when we organize data to be ready for analysis;
+model building which is when we make a prediction algorithm that learns patterns from the data;
+and then we evaluate how good the model is by using test data. A pipeline puts all of these steps together in on process 
+
+We first define which relevant columns are numerical and which ones are categorical.
+Then we create the pipeline for both Decision Tree. The pipeline for numerical values is different for Decision Tree and Random Tree Forest.
+
+Both model workflows will use the same categorical pipeline, as the way categories are handled will be the same: using SimpleImputer with the most frequent value to fill in missing values, and OneHotEncoder to turn categorical values into True or False.
+The preprocessor is what is used to package the numerical and categorical columns together.
+After that comes the main pipelines. This combines the preprocessor, which is how the data is handled, with the specific model. 
+Then the model must be fit to the data, or 'take practice tests' and have the model 'take the REAL test'. 
+After that, we conclude with finding the Root Mean Squared Error of our results for both models.
 ```{python}
 #training and test sets
 data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce')
@@ -492,16 +326,15 @@ pipe.fit(x_train, y_train)
 
 #Assess model on test data
 test_preds = pipe.predict(x_test)
-rmse = np.sqrt(mean_squared_error(y_test, test_preds))
-print("Root Mean Squared Error:", rmse)
-
-#Use model to predict for new data
-# pipe.predict(new_data)
-# 
-# y_train.info()
-# y_train.head()
+dt_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
+print("Root Mean Squared Error:", dt_rmse)
 ```
-```{python}
+
+The Root Mean Squared Error for DecisionTreeRegressor is `r py$dt_rmse`.
+
+The above format for model construction is followed for RandomTreeForsest as well.
+
+```{python echo=FALSE}
 rf_reg = RandomForestRegressor(max_depth=2, random_state=434)
 
 # pipeline for Random Tree Forst
@@ -540,132 +373,8 @@ pipe.fit(x_train, y_train)
 
 #Assess model on test data
 test_preds = pipe.predict(x_test)
-rmse = np.sqrt(mean_squared_error(y_test, test_preds))
-print("Root Mean Squared Error:", rmse)
+rtf_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
+rtf_rmse
 ```
 
-
-```{python}
-# x_train_encoded = pd.get_dummies(x_train, columns=["original_language"])
-# x_test_encoded = pd.get_dummies(x_test, columns=["original_language"])
-# x_train = train[predictors]
-# # float64
-# x_train.loc[:, "release_date_float"] = x_train["release_date"].astype('int64') // 10**9
-# x_train.drop("release_date", axis=1, inplace=True)
-# 
-# x_train['genre_names'] = x_train['genre_names'].apply(tuple)
-# x_train.info()
-# 
-# print(x_train['genre_names'].head())
-# 
-# y_train = train["vote_average"]
-# 
-# y_train.info()
-# 
-# y_train.fillna(y_train.mean(), inplace=True)
-
-# budget genre_names, 'original_language', revenue, runtime, 
-```
-
-```{python}
-# columns that have numerical values we are interested in
-num_cols = ["budget", "release_date_float", "runtime"]
-# columns that have categorical values we are interested in
-cat_cols = ["original_language"]
-
-# Decision trees = pipeline for processing numerical values 
-# does not use scaling 
-num_pipe_dt = Pipeline([
-  # SimpleImputer = imputes missing values by using the median
-  ("num_imputer", SimpleImputer(strategy = "median"))
-])
-
-# cat_pipe = pipeline for processing categorical values
-cat_pipe = Pipeline([
-  # SimpleImputer = imputes categorical values by using the most frequent vals.
-  ("cat_imputer", SimpleImputer(strategy = "most_frequent")),
-  # oneHotEncoder = converts categorical features into binary (0 = false or 1 = true)
-  ("one-hot", OneHotEncoder(handle_unknown = "ignore"))
-])
-```
-
-The preprocessor is what is used to package the numerical and categorical columns together. Separate preprocessors are used for KNN and Decision Trees since both handle numerical data a little differently.
-
-```{python}
-# preprocessor_dt = applies decision tree for numerical values and cat_pipe to categorical values 
-preprocessor_dt = ColumnTransformer([
-  ("num_cols", num_pipe_dt, num_cols),
-  ("cat_cols", cat_pipe, cat_cols)
-])
-```
-
-Now comes the main pipelines. This combines the preprocessor, which is how the data is handled, with the specific model. Before that, we declare the Decision Tree classifier and pass in the optimal number of depth.
-
-```{python}
-# A decision tree with max_depth parameter passed in
-dt_reg = DecisionTreeRegressor(random_state=434)
-
-# MAIN PIPELINE
-
-# main pipeline for DT model
-pipe_dt = Pipeline([
-  # Data preprocessing for Decision Trees features (numerical and categorical).
-  ("preprocessor", preprocessor_dt),
-  ("model", dt_reg)
-])
-```
-
-As mentioned above, grid search will be utitlized to find the most ideal depth for the decision tree. An array of possible depth values for the tree is declared. The next chunk tests the grid search and finds the optimal value for the depth of the tree.
-
-```{python}
-# GRID FOR HYPERPARAMTER TESTING
-grid_depth = [{
-  "model__max_depth" : [2, 3, 4, 5, 8, 10, 12, 15, 20]
-}]
-
-# def get_genre_names_for_film(film):
-#   all_genres = "".join(film["genre_names"][0])
-#   return all_genres
-# 
-# def join_genres(row):
-#   return "".join(x_train["genre_names"][row])
-#   
-
-# x_train["all_genres"] = x_train["genre_names"].apply(lambda row: "".join(row["genre_names"][0]))
-x_train_encoded.info()
-x_train_encoded.drop("genres", axis=1)
-x_train_encoded.drop("genre_names", axis=1)
-x_train_encoded.info()
-dt_reg.fit(x_train_encoded, y_train)
-
-# Predict on the test set
-y_pred = dt_reg.predict(x_test)
-
-# Evaluate the model
-mse = mean_squared_error(y_test, y_pred)
-print(f"Mean Squared Error: {mse}")
-
-grid_results_dt = GridSearchCV(pipe_dt, param_grid = grid_depth, scoring = "accuracy", cv = 5)
-
-grid_results_dt.fit(x_train, y_train)
-
-best_depth = grid_results_dt.best_params_['model__max_depth']
-```
-
-For DT, the best number of max depth is `r py$best_depth`. 
-
-With the model tuned to have the best hyperparameters, it is time to fit the model to the data, or 'take practice tests' and have the model 'take the REAL test'. The results will then be placed into a confusion matrix, which shows the probability of being a certain value for each home. In this case, this is the probability that the home is a certain price range.
-
-```{python}
-dt_fit = pipe_dt.fit(x_train, y_train)
-
-dt_preds = dt_fit.predict(x_train)
-
-#Add predictions column to X_train_small
-x_train.loc[:, "preds"] = dt_preds
-#Add "priceRange" column back to X_train_small
-x_train.loc[:, "priceRange"] = y_train
-
-#Build a confusion matrix for true classes ("priceRange") and predicted classes ("preds")
-x_train[["priceRange", "preds"]].value_counts(["priceRange", "preds"]).reset_index().pivot(index = "priceRange", columns = "preds", values = "count").reset_index()
-```
+The Root Mean Squared Error for RandomForestRegressor is `r py$rtf_rmse`.
