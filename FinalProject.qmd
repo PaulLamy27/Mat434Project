@@ -20,8 +20,10 @@ use_virtualenv("mat434")
 ```
 
 ## STATEMENT OF PURPOSE
-This report takes data from TMDB, a massive online database of films, and examines various characteristics of movies and how these relate to the rating, or vote average, of that movie. Then, two kinds of regression models are constructed, and these can be used to predict the rating of a movie based on those predictor characteristics.
+This report takes data from TMDB, a massive online database of films, and examines various characteristics of movies and how these relate to the rating, or vote average, of that movie. The goal of this analysis is to determine what characteristics of a movie can be predcitors for the film's rating. Then, two kinds of regression models are constructed, and these can be used to predict the rating of a movie based on those predictor characteristics.
 
+## EXECUTIVE SUMMARY
+In this notebook, a set of films from The Movie DataBase was examined, and what characteristics contributed to `vote average`, or the rating, of a film. The goal is to determine what characteristics of a movie contribute to the film's rating. The dataset was loaded in and some changes to the format were made to make it easier to work with. The amount of films for the top 20 language groups was examined, with English, French, Italian, and Japanese films being the most present in this dataset. The relationship between a film's budget and rating was examined, and there was a large cluster of films with budgets $500,000 and greater. For this cluster, the rating was most frequently between 5.0 and 7.5 out of 10. Then, the relationship between a film's runtime and rating was examined. There were not many films with a runtime greater than 300 minutes. There was a major cluster of films between 80 and 150 minutes in length; for this set of films, ratings had a wide distribution, from 3.0 to 8.0 out of 10. The relationship between a film's release date year and rating was examined. As the year increases, the number of films also increased, and thus the distribution of ratings increased as well. Just like previously, the ratings were distributed between 3.0 to 8.0 out of 10. Median ratings were gathered for the genres of a film, and documentary films had the highest rating of about 7.0 out of 10, with history, animation, and war films being the next highest-rating genres. Median ratings were also examined for the original language of a film. The highest-rated films were Zulu, Latin, Amharic, Catalan, and Punjabi. The languages stated above that were most common in the dataset were not present in the median rating vs. language chart; this is perhaps due to less common languages for a movie to be in having less movies and less ratings, and those higher ratings of said films will skew the median towards a higher rating. Then, Decision Tree and Random Forest models were constructed, and these use the predictors of language, runtime, budget, release date, and genre to predict a film's rating. Using the analysis, the language of a film can contribute to the rating, but intentionally using a higher-rating language like Zulu or Amharic is not a direct impact on the rating. Something intentional that would have an impact is budget and runtime; a budget of 500,000USD or greater and a runtime no more than 200 minutes helps to get a higher rating. Release date also was examined, but as the year increases, so does the distribution of ratings.
 
 ## INTRODUCTION
 There are many factors that go into making a movie, some intentional such as budget and the runtime of the film, and others such as the spoken language of the film and the revenue the film earns. TheMovieDataBase, hereforth TMDB, is an online database of almost every single movie ever created. For reference, the dataset for this project is  about 45000 rows long!  
@@ -60,13 +62,11 @@ from sklearn.metrics import accuracy_score, confusion_matrix, roc_auc_score
 from scipy import stats
 ```
 
-The original data has columns that are not helpful for the analysis. This data:'
+The format of the original data needs some adjustment. The original data has columns that are not helpful for the analysis. This data:'
 
 ```{python}
 data = pd.read_csv('movies_metadata.csv')
 data.info()
-
-train, test = train_test_split(data, train_size = 0.75, random_state = 434)
 ```
 
 becomes
@@ -77,7 +77,14 @@ columns_to_keep = ["budget", "genre_names", "original_language", "release_date",
 data.drop(columns=columns_to_drop, inplace=True)
 data.info()
 ```
-
+Here is the head of the data as it stands right now:
+```{r}
+py$data %>%
+  head() %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("hover", "striped"))
+```
+`genres` is in an odd JSON/dictionary-esque format. We will clean this up for better use later.
 ```{python echo=FALSE}
 #data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce').astype('float64')
 # data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce')
@@ -90,15 +97,51 @@ data.info()
 # data['original_language'].fillna(data['original_language'].mode()[0], inplace=True)
 #data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce').astype('float64')
 data['release_date'] = pd.to_datetime(data['release_date'], errors='coerce')
-data['release_date']
+# data['release_date']
 # errors='coerce' will replace non-numeric values with NaN
 data['budget'] = pd.to_numeric(data['budget'], errors='coerce')
 # make 'budget' a float column
-print(data['budget'])
+# print(data['budget'])
 data['budget'].fillna(data['budget'].median(), inplace=True)
 data['runtime'].fillna(data['runtime'].median(), inplace=True)
 data['original_language'].fillna(data['original_language'].mode()[0], inplace=True)
-data['original_language'].unique()
+
+```
+
+Furthermore, the dataset uses 2 letter codes for the `original_language` column. These are hard to understand, so let's change them to their actual name, in a new column called `language_name`:
+
+```{python}
+language_codes = data['original_language'].unique()
+language_codes
+
+language_names = {'en': 'English', 'fr': 'French', 'zh': 'Chinese', 'it': 'Italian', 'fa': 'Persian',
+                  'nl': 'Dutch', 'de': 'German', 'cn': 'Chinese', 'ar': 'Arabic', 'es': 'Spanish',
+                  'ru': 'Russian', 'sv': 'Swedish', 'ja': 'Japanese', 'ko': 'Korean', 'sr': 'Serbian',
+                  'bn': 'Bengali', 'he': 'Hebrew', 'pt': 'Portuguese', 'wo': 'Wolof', 'ro': 'Romanian',
+                  'hu': 'Hungarian', 'cy': 'Welsh', 'vi': 'Vietnamese', 'cs': 'Czech', 'da': 'Danish',
+                  'no': 'Norwegian', 'nb': 'Norwegian Bokmål', 'pl': 'Polish', 'el': 'Greek', 'sh': 'Serbo-Croatian',
+                  'xx': 'Unknown', 'mk': 'Macedonian', 'bo': 'Tibetan', 'ca': 'Catalan', 'fi': 'Finnish',
+                  'th': 'Thai', 'sk': 'Slovak', 'bs': 'Bosnian', 'hi': 'Hindi', 'tr': 'Turkish',
+                  'is': 'Icelandic', 'ps': 'Pashto', 'ab': 'Abkhaz', 'eo': 'Esperanto', 'ka': 'Georgian',
+                  'mn': 'Mongolian', 'bm': 'Bambara', 'zu': 'Zulu', 'uk': 'Ukrainian', 'af': 'Afrikaans',
+                  'la': 'Latin', 'et': 'Estonian', 'ku': 'Kurdish', 'fy': 'Western Frisian', 'lv': 'Latvian',
+                  'ta': 'Tamil', 'sl': 'Slovenian', 'tl': 'Tagalog', 'ur': 'Urdu', 'rw': 'Kinyarwanda',
+                  'id': 'Indonesian', 'bg': 'Bulgarian', 'mr': 'Marathi', 'lt': 'Lithuanian', 'kk': 'Kazakh',
+                  'ms': 'Malay', 'sq': 'Albanian', '104.0': 'Unknown', 'qu': 'Quechua', 'te': 'Telugu',
+                  'am': 'Amharic', 'jv': 'Javanese', 'tg': 'Tajik', 'ml': 'Malayalam', 'hr': 'Croatian',
+                  'lo': 'Lao', 'ay': 'Aymara', 'kn': 'Kannada', 'eu': 'Basque', 'ne': 'Nepali',
+                  'pa': 'Punjabi', 'ky': 'Kyrgyz', 'gl': 'Galician', '68.0': 'Unknown', 'uz': 'Uzbek',
+                  'sm': 'Samoan', 'mt': 'Maltese', '82.0': 'Unknown', 'hy': 'Armenian', 'iu': 'Inuktitut',
+                  'lb': 'Luxembourgish', 'si': 'Sinhalese'}
+
+# Filter out numbers from the language codes
+language_names_dict = {code: language_names[code] for code in language_codes if isinstance(code, str) and not code.replace('.', '').isdigit()}
+
+# Assuming you have a DataFrame called 'df' with a column 'original_language'
+data['language_name'] = data['original_language'].map(language_names_dict)
+
+data['language_name']
+data.drop("original_language", axis=1)
 ```
 
 ```{python echo=FALSE}
@@ -114,15 +157,38 @@ median_by_genre = exploded_data.groupby('genre_names')['vote_average'].median().
 
 # Display the result
 median_by_genre = median_by_genre.dropna(subset=['vote_average'])
+
+data.drop("genres", axis=1)
 ```
+
+```{python}
+data_size = len(data)
+num_vars = data.shape[1]
+
+train, test = train_test_split(data, train_size = 0.75, random_state = 434)
+```
+
+## EXPLORATORY DATA ANALYSIS
+
+The dataset contains `r py$data_size` data entries and 
+`r py$num_vars` variables. The first few entries are as follows:
+
+```{r}
+py$data %>%
+  head() %>%
+  kable() %>%
+  kable_styling(bootstrap_options = c("hover", "striped"))
+```
+
+
 The following chart displays the number of films for each main language, and displays only the top 20 languages that have the most films.
 
 ```{r echo=FALSE}
-py$data %>%
-  count(original_language) %>%
+py$train %>%
+  count(language_name) %>%
   top_n(20) %>%
   ggplot() +
-  geom_col(aes(x = original_language, y=n, fill = original_language)) +
+  geom_col(aes(x = reorder(language_name, desc(-n)), y=n, fill = language_name)) +
   labs(
     x = "Original Language",
     y = "Count",
@@ -133,17 +199,18 @@ py$data %>%
   theme(legend.position="none") +  # Optional: Hide legend if not needed
   coord_flip()  # Optional: Flip the coordinates for horizontal bars
 ```
+English is a widely used language in films, so unsurprisingly, the most films in the dataset are in English.
 
 ```{python echo=FALSE}
-original_languages_arr = train["original_language"].unique() 
+language_names_arr = train["language_name"].unique() 
 median_ratings_orig_lang = []
 
-for language in original_languages_arr:
-  data_subset = train[train['original_language'] == language]['vote_average']
+for language in language_names_arr:
+  data_subset = train[train['language_name'] == language]['vote_average']
   # median_vote_avg = np.median()
   if not data_subset.empty and not data_subset.isnull().all():
     median_vote_avg = np.median(data_subset)
-    median_ratings_orig_lang.append({'original_language': language, 'median_vote':median_vote_avg})
+    median_ratings_orig_lang.append({'language_name': language, 'median_vote':median_vote_avg})
   
 median_ratings_orig_lang_df = pd.DataFrame(median_ratings_orig_lang)
 ```
@@ -152,7 +219,7 @@ This chart compares a movie's budget with its average vote:
 ```{r echo=FALSE}
 py$train %>%
   ggplot() +
-  geom_point(aes(x = as.numeric(budget), y=vote_average)) +
+  geom_point(aes(x = as.numeric(budget), y=vote_average, color = factor(vote_average))) +
   labs(
     x = "Budget",
     y = "Vote Average",
@@ -161,8 +228,34 @@ py$train %>%
   scale_x_log10(
     "budget",
     labels = scales::dollar_format()
-  )
+  ) +
+ scale_color_manual(values = colorRampPalette(c("blue", "red"))(length(unique(py$train$vote_average))))+
+ theme(legend.position = "none")
 ```
+There is a massive cluster of ratings from 3-7.5.
+
+We can zoom in specifically on this cluster:
+```{r echo=FALSE}
+py$train %>%
+  ggplot() +
+  geom_point(aes(x = as.numeric(budget), y=vote_average, color = factor(vote_average))) +
+  labs(
+    x = "Budget",
+    y = "Vote Average",
+    title = "Film Budget vs. Rating"
+  ) +
+  scale_x_log10(
+    "budget",
+    labels = scales::dollar_format(),
+    breaks = c(100000, 500000, 1000000, 5000000, 10000000) 
+  ) +
+  xlim(1000000, 10000000) +
+ scale_color_manual(values = colorRampPalette(c("blue", "red"))(length(unique(py$train$vote_average))))+
+ theme(legend.position = "none")
+```
+
+In this zoomed in chart, at intervals/breaks, there is a long vertical line of points with the same budget amount. This could be movies of similar characteristics; for example, maybe all of these films are from a specific production company and thus had the same budget.
+
 This chart compares a movie's runtime with its average vote:
 
 ```{r echo=FALSE}
@@ -174,6 +267,38 @@ py$train %>%
     y = "Vote Average",
     title = "Runtime of a Film vs. Rating"
   )
+```
+Let's make a few more charts that zoom in specifically on the major left-skew cluster:
+
+```{r echo=FALSE}
+py$train %>%
+  ggplot() +
+  geom_point(aes(x = as.numeric(runtime), y=vote_average)) +
+  labs(
+    x = "Runtime",
+    y = "Vote Average",
+    title = "Runtime of a Film vs. Rating"
+  ) +
+  scale_x_log10(
+    "runtime",
+    breaks = c(0, 80, 160, 240, 320, 400) 
+  ) +
+  xlim(0, 400)  
+```
+```{r echo=FALSE}
+py$train %>%
+  ggplot() +
+  geom_point(aes(x = as.numeric(runtime), y=vote_average)) +
+  labs(
+    x = "Runtime",
+    y = "Vote Average",
+    title = "Runtime of a Film vs. Rating"
+  ) +
+  scale_x_log10(
+    "runtime",
+    breaks = c(0, 50, 100, 150, 200) 
+  ) +
+  xlim(0, 200)  
 ```
 
 This chart shows the relationship between the date a film was released and the average vote:
@@ -187,12 +312,14 @@ py$data %>%
     title = "Film Release Date vs. Rating"
   )
 ```
+Approximately by the year 1940, there were already many films, but the number of films and ratings for these films started to increase, as there is a right-skew cluster that gets larger as time goes on. 
+
 
 This chart displays the median vote for each genre:
 ```{r echo=FALSE}
 py$median_by_genre %>%
   ggplot() +
-  geom_col(aes(x = genre_names, y = vote_average, fill = genre_names)) +
+  geom_col(aes(x = reorder(genre_names, vote_average), y = vote_average, fill = genre_names)) +
   labs(
     x = "Genre",
     y = "Median Vote",
@@ -201,19 +328,15 @@ py$median_by_genre %>%
   theme(legend.position="none") + # remove legend since fill is used 
   coord_flip()  # Flip the coordinates for horizontal bars
 ```
-
-```{python echo=FALSE}
-median_ratings_orig_lang_df.info()
-median_ratings_orig_lang_df["original_language"].unique()
-```
+Documentary, history, animation, and war films get the most love out of any genre! Sadly, this is not the case with horror, science fiction, or TV movies. 
 
 This chart displays the median vote for each original language:
 ```{r echo=FALSE}
 py$median_ratings_orig_lang_df %>%
-  count(original_language, median_vote) %>%
+  count(language_name, median_vote) %>%
   slice_max(order_by = median_vote, n = 20) %>%
   ggplot() +
-  geom_col(aes(x = reorder(original_language, median_vote), y = median_vote, fill = original_language)) +
+  geom_col(aes(x = reorder(language_name, median_vote), y = median_vote, fill = language_name)) +
   labs(
     x = "Original Language",
     y = "Median Vote",
@@ -222,6 +345,8 @@ py$median_ratings_orig_lang_df %>%
   theme(legend.position="none") +
   coord_flip()
 ```
+Zulu, Latin, and Amharic films are not common, and since there may be less films spoken in thesee languages than others more prevalent in the data set, there may be less ratings, and thus the higher ratings for these films may be a reason for their high placement in the chart (especially since Latin is a dead language!).
+Also worth noting is that languages such English, French, or Japanese that had the most movies as that `original_language`/`language_name` are nowhere in this chart. The point made above is probably the case as well.  
 
 ## Model Construction
 In order to see how accurate the prediction of a film's rating is, the models first need to be constructed. Firstly, the `release_date` column will be changed to a format that is better for the modeling pipeline, which is a Unix timestamp. Then, the train data is split into the x and y, where x is all columns except for the `vote_average` and y is the `vote_average` column the model is trying to predict. There is a separation between numerical columns and categorical columns, which is helpful for the pipeline.  
@@ -279,8 +404,8 @@ x_train.info()
 # columns that have numerical values we are interested in
 num_cols = ["budget", "release_date", "revenue", "runtime"]
 # columns that have categorical values we are interested in
-# cat_cols = ["original_language", "genre_names"]
-cat_cols = ["original_language"]
+# cat_cols = ["language_name", "genre_names"]
+cat_cols = ["language_name"]
 
 
 cat_pipe = Pipeline([
@@ -327,15 +452,16 @@ pipe.fit(x_train, y_train)
 #Assess model on test data
 test_preds = pipe.predict(x_test)
 dt_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
-print("Root Mean Squared Error:", dt_rmse)
 ```
+
+
 
 The Root Mean Squared Error for DecisionTreeRegressor is `r py$dt_rmse`.
 
 The above format for model construction is followed for RandomTreeForsest as well.
 
 ```{python echo=FALSE}
-rf_reg = RandomForestRegressor(max_depth=2, random_state=434)
+rf_reg = RandomForestRegressor(max_depth=5, random_state=434)
 
 # pipeline for Random Tree Forst
 num_pipe_rtf = Pipeline([
@@ -374,7 +500,15 @@ pipe.fit(x_train, y_train)
 #Assess model on test data
 test_preds = pipe.predict(x_test)
 rtf_rmse = np.sqrt(mean_squared_error(y_test, test_preds))
-rtf_rmse
 ```
 
 The Root Mean Squared Error for RandomForestRegressor is `r py$rtf_rmse`.
+
+## MODEL INTERPRETATION AND INFERENCE
+These models can be used by film people - directors, film crews, or even film buffs - to use the predictors to see what a film's rating will be based on those predictors.
+
+## CONCLUSION
+In this notebook, data analysis was done on a set of `r py$data_size` entries from TheMovieDataBase (TMDB) to see what characteristics. EDA was done to exaine trends based on language, runtime, release date, and budget. Then, a model for both DecisionTreeRegressor and RandomForestRegressor were constructed, and these can be used for predicting the rating of a movie using those predictors. The data was cleaned up for better use by the data scientist; however, a column of interest was omitted. The one in question is `production_companies`. This was omitted due to time constraints and a lack of success in trying to extract the name of the production companies, as the format was in an odd JSON/dictionary-esque format, similar to other columns. The director of the movie was also included in the data set, but also in this format which was difficult to work with. This would have also been a major predictor for a film's rating. In the original Kaggle link, only one of the files was used. There was another file that contains the cast, and this could have been examined using tokenization andtext analysis. Due to time constraints and also the fact that this information was stored in a separate file than the one primarily used, this was skipped for now.
+
+## REFERENCES
+https://www.kaggle.com/datasets/rounakbanik/the-movies-dataset?select=movies_metadata.csv 
